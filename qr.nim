@@ -2,7 +2,8 @@
 # https://www.keyence.com/ss/products/auto_id/codereader/basic_2d/qr.jsp
 
 # goes from 21 to 177, but 21 should be ok
-const module_size:int = 21
+# 7 top, 7 bot,  11 in between
+const module_size:int = 25
 
 type
     image = array[module_size, array[module_size,bool]]
@@ -27,9 +28,12 @@ proc write_square(src: point,img:var image, square_len:int) =
 
 proc encode(input: string): image =
     var img:image
-    write_square((x:0,y:0),img,7)
 
-    # write_square({x:},img,7)
+    const corner_size = 7
+    write_square((x:0,y:0),img,corner_size)
+    write_square((x:module_size-corner_size,y:0),img,corner_size)
+    write_square((x:0,y:module_size-corner_size),img,corner_size)
+
 
     # set up aligning margins(squares etc)
 
@@ -46,7 +50,7 @@ proc encode(input: string): image =
 import pixie
 
 const cell_size:int = 10
-const image_size:int = cell_size*10
+const image_size:int = cell_size*module_size
 
 let qr_code:image = encode("hello")
 
@@ -67,7 +71,6 @@ for cell_x in 0..module_size-1:
             # echo "cell_size:", cell_size
             # echo "cast output:", float(cell_x*cell_size)
             let pos = vec2(float(cell_x*cell_size),float(cell_y*cell_size))
-            echo "pos:", pos
             ctx.fillRect(rect(pos, wh))
 
 screen.writeFile("output.png")
