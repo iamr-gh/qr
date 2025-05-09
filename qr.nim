@@ -8,6 +8,7 @@ const module_size:int = 21
 # going to implement version 1 for now
 # https://commons.wikimedia.org/wiki/File:QR_Character_Placement.svg#/media/File:QR_Character_Placement.svg
 
+proc bit_index(n:int,i:int):bool = bool((n shr i) and 1)
 
 type
     image = array[module_size, array[module_size,bool]]
@@ -50,13 +51,7 @@ proc write_dotted(src: point,dst: point,img:var image) =
         pos.y += dir_y
         color = not color
 
-# remember dark is true
 func mask_point(pattern:int, loc:point, color:bool):bool = 
-    # let fmt = pattern[0] * 4 + pattern[1] * 2 + pattern[2]
-    # var fmt:int = 0
-    # for i in 0..2:
-    #     fmt = fmt * 2 + (if pattern[i]: 1 else: 0)
-
     # x is j, y is i in the notion of the image
     case pattern
         of 0b111:
@@ -83,23 +78,70 @@ proc mask_image(pattern:int, img:var image) =
         for y_i in 0..module_size-1:
             img[x_i][y_i] = mask_point(pattern,(x:x_i,y:y_i),img[x_i][y_i])
 
-# all used in the v1 method
-proc write_2x4_up(src:point,data:array[8,bool],img:var image) =
-    echo "todo"
+# all used in the v1 method, and 1 is MSB
+# src is top left in all conventions
+proc write_2x4_up(src:point,data:int,img:var image) =
+    # 8 7
+    # 6 5
+    # 4 3 
+    # 2 1 
 
-proc write_2x4_down(src:point,data:array[8,bool],img:var image) =
-    echo "todo"
+    # code can be condensed with smart indexing
+    img[src.x][src.y] = bit_index(data,0)
+    img[src.x+1][src.y] = bit_index(data,1)
+    img[src.x][src.y+1] = bit_index(data,2)
+    img[src.x+1][src.y+1] = bit_index(data,3)
+    img[src.x][src.y+2] = bit_index(data,4)
+    img[src.x+1][src.y+2] = bit_index(data,5)
+    img[src.x][src.y+3] = bit_index(data,6)
+    img[src.x+1][src.y+3] = bit_index(data,7)
 
-proc write_4x2_anti_clockwise(src:point,data:array[8,bool],img:var image) =
-    echo "todo"
+proc write_2x4_down(src:point,data:int,img:var image) =
+    # 2 1
+    # 4 3
+    # 6 5 
+    # 8 7
+    img[src.x][src.y+3] = bit_index(data,0)
+    img[src.x+1][src.y+3] = bit_index(data,1)
+    img[src.x][src.y+2] = bit_index(data,2)
+    img[src.x+1][src.y+2] = bit_index(data,3)
+    img[src.x][src.y+1] = bit_index(data,4)
+    img[src.x+1][src.y+1] = bit_index(data,5)
+    img[src.x][src.y] = bit_index(data,6)
+    img[src.x+1][src.y] = bit_index(data,7)
 
-proc write_4x2_clockwise(src:point,data:array[8,bool],img:var image) =
+proc write_4x2_anti_clockwise(src:point,data:int,img:var image) =
+    # 6 5 4 3 
+    # 8 7 2 1
+    img[src.x][src.y+1] = bit_index(data,0)
+    img[src.x+1][src.y+1] = bit_index(data,1)
+    img[src.x][src.y] = bit_index(data,2)
+    img[src.x+1][src.y] = bit_index(data,3)
+    img[src.x+2][src.y] = bit_index(data,4)
+    img[src.x+3][src.y] = bit_index(data,5)
+    img[src.x+2][src.y+1] = bit_index(data,6)
+    img[src.x+3][src.y+1] = bit_index(data,7)
+
+proc write_4x2_clockwise(src:point,data:int,img:var image) =
+    # 8 7 2 1 
+    # 6 5 4 3
     echo "todo"
 
 proc encode(input: string): image =
     var img:image
 
     # all v1, under this format: https://en.wikipedia.org/wiki/QR_code#/media/File:QR_Character_Placement.svg
+
+
+    # assign data first and mask
+
+    # TODO fill in all sections and test
+    write_2x4_up((x:module_size-2,y:module_size-6),0b10101111,img)
+
+
+
+    # all data afterwards will hard rewrite over masking pattern
+    # TODO: write borders under this constraint
 
     const corner_size = 7
     write_square((x:0,y:0),img,corner_size)
@@ -113,13 +155,20 @@ proc encode(input: string): image =
     img[8][13] = true
 
     # format info(hardcoded v1)
+    let mask_pattern = 0b100
+
+    assert bit_index(mask_pattern,2) == true
+    assert bit_index(mask_pattern,1) == false
+    assert bit_index(mask_pattern,0) == false
 
     # tl
+
+    # ec level
     img[8][0] = true
     img[8][1] = true
-    img[8][2] = false
+    img[8][2] = true
     img[8][3] = false
-    img[8][4] = true
+    img[8][4] = false
     img[8][5] = true
 
     img[8][7] = true
@@ -127,12 +176,16 @@ proc encode(input: string): image =
 
     img[0][8] = true
     img[1][8] = true
-    img[2][8] = true
-    img[3][8] = false
-    img[4][8] = false
+    img[2][8] = bit_index(mask_pattern,2)
+    img[3][8] = bit_index(mask_pattern,1)
+    img[4][8] = bit_index(mask_pattern,0)
     img[5][8] = true
+    # img[7][8] = true, post forced point format error correction
+
 
     # tr
+    # is it reflected?
+    # no just seems to be same but different rotation
     img[13][8] = true
     img[14][8] = true
     img[15][8] = true
@@ -143,6 +196,16 @@ proc encode(input: string): image =
     img[20][8] = true
 
     # bl
+    # fmt ecc
+    img[8][14] = false 
+    img[8][15] = true 
+    img[8][16] = bit_index(mask_pattern,0)
+    img[8][17] = bit_index(mask_pattern,1)
+    img[8][18] = bit_index(mask_pattern,2)
+    # ecc level
+    img[8][19] = true
+    img[8][20] = true
+
 
 
     # set up aligning margins(squares etc)
@@ -152,6 +215,9 @@ proc encode(input: string): image =
     # add ECC, etc.
 
     # write the data bits to the image
+
+
+    # apply mask
 
     img
 
@@ -184,11 +250,11 @@ writeCode(ctx,qr_code)
 screen.writeFile("output.png")
 
 # test all the different mask patterns
-for i in 0..8:
-    var blank:image
-    mask_image(i,blank)
-    screen.fill(rgba(255,255,255,255)) # clear screen
-    writeCode(ctx,blank)
-
-    screen.writeFile("mask_" & $i & ".png")
+# for i in 0..8:
+#     var blank:image
+#     mask_image(i,blank)
+#     screen.fill(rgba(255,255,255,255)) # clear screen
+#     writeCode(ctx,blank)
+#
+#     screen.writeFile("mask_" & $i & ".png")
     
