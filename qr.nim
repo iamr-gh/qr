@@ -44,12 +44,27 @@ proc write_dotted(src: point,dst: point,img:var image) =
         pos:point = src
 
     while pos.x != dst.x or pos.y != dst.y:
-        if color:
-            img[pos.x][pos.y] = true
+        img[pos.x][pos.y] = color
         
         pos.x += dir_x
         pos.y += dir_y
         color = not color
+
+proc write_flat(src: point,dst: point,color:bool,img:var image) =
+    let 
+        dx = dst.x - src.x
+        dy = dst.y - src.y
+        dir_x = if dx > 0: 1 else: 0
+        dir_y = if dy > 0: 1 else: 0
+
+    var 
+        pos:point = src
+
+    while pos.x != dst.x or pos.y != dst.y:
+        img[pos.x][pos.y] = color
+        
+        pos.x += dir_x
+        pos.y += dir_y
 
 func mask_point(pattern:int, loc:point, color:bool):bool = 
     # x is j, y is i in the notion of the image
@@ -187,20 +202,32 @@ proc encode(input: string): image =
     write_2x4_up((x:2,y:module_size-12),0b01010101,img) #e6
     write_2x4_up((x:0,y:module_size-12),0b01010101,img) #e7
 
-
-
-
-
-    # for the larger ones, need to automate this patterning more
-
+    # for the larger ones(e.g. ver 3), need to automate this patterning mor
 
     # all data afterwards will hard rewrite over masking pattern
-    # TODO: write borders under this constraint
+
+
+    # format info(hardcoded v1)
+    let mask_pattern = 0b100
+    
+    mask_image(mask_pattern,img)
+    
 
     const corner_size = 7
     write_square((x:0,y:0),img,corner_size)
     write_square((x:module_size-corner_size,y:0),img,corner_size)
     write_square((x:0,y:module_size-corner_size),img,corner_size)
+
+    # write white borders under this constraint
+    write_flat((x:corner_size,y:0),(x:corner_size,y:corner_size),false,img)
+    write_flat((x:0,y:corner_size),(x:corner_size,y:corner_size),false,img)
+
+    write_flat((x:module_size-corner_size-1,y:0),(x:module_size-corner_size-1,y:corner_size),false,img)
+    write_flat((x:module_size-corner_size,y:corner_size),
+                (x:module_size,y:corner_size),false,img)
+
+    write_flat((x:0,y:module_size-corner_size-1),(x:corner_size,y:module_size-corner_size-1),false,img)
+    write_flat((x:corner_size,y:module_size-corner_size),(x:corner_size,y:module_size),false,img)
 
     # fixed patterns
     write_dotted((x:6,y:8),(x:6,y:14),img)
@@ -208,8 +235,6 @@ proc encode(input: string): image =
 
     img[8][13] = true
 
-    # format info(hardcoded v1)
-    let mask_pattern = 0b100
 
     assert bit_index(mask_pattern,2) == true
     assert bit_index(mask_pattern,1) == false
