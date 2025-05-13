@@ -165,29 +165,31 @@ proc encode(input: string): image =
     # TODO fill in all sections and test
 
     # enc takes up the 2x2
-    write_2x4_up((x:module_size-2,y:module_size-6),0b01010101,img) #len
-    write_2x4_up((x:module_size-2,y:module_size-10),0b10101010,img) #d1
-    write_4x2_anti_clockwise((x:module_size-4,y:module_size-12),0b01010101,img) #d2
-    write_2x4_down((x:module_size-4,y:module_size-10),0b10101010,img) #d3
-    write_2x4_down((x:module_size-4,y:module_size-6),0b01010101,img) #d4
+    write_2x4_up((x:module_size-2,y:module_size-6),input.len,img) #len
+    write_2x4_up((x:module_size-2,y:module_size-10),int(input[0]),img) #d1
+    write_4x2_anti_clockwise((x:module_size-4,y:module_size-12),int(input[1]),img) #d2
+    write_2x4_down((x:module_size-4,y:module_size-10),int(input[2]),img) #d3
+    write_2x4_down((x:module_size-4,y:module_size-6),int(input[3]),img) #d4
 
-    write_4x2_clockwise((x:module_size-6,y:module_size-2),0b10101010,img) #d5
-    write_2x4_up((x:module_size-6,y:module_size-6),0b01010101,img) #d6
-    write_2x4_up((x:module_size-6,y:module_size-10),0b10101010,img) #d7
+    write_4x2_clockwise((x:module_size-6,y:module_size-2),int(input[4]),img) #d5
+    write_2x4_up((x:module_size-6,y:module_size-6),int(input[5]) ,img) #d6
+    write_2x4_up((x:module_size-6,y:module_size-10),int(input[6]),img) #d7
 
-    write_4x2_anti_clockwise((x:module_size-8,y:module_size-12),0b01010101,img) #d8
-    write_2x4_down((x:module_size-8,y:module_size-6),0b01010101,img) #d10
-    write_2x4_down((x:module_size-8,y:module_size-10),0b10101010,img) #d9
+    write_4x2_anti_clockwise((x:module_size-8,y:module_size-12),int(input[7]),img) #d8
+    write_2x4_down((x:module_size-8,y:module_size-6),int(input[8]),img) #d10
+    write_2x4_down((x:module_size-8,y:module_size-10),int(input[9]),img) #d9
 
-    write_4x2_clockwise((x:module_size-10,y:module_size-2),0b10101010,img) #d11
-    write_2x4_up((x:module_size-10,y:module_size-6),0b01010101,img) #d12
-    write_2x4_up((x:module_size-10,y:module_size-10),0b10101010,img) #d13
-    write_2x4_up((x:module_size-10,y:module_size-14),0b01010101,img) #d14
+    write_4x2_clockwise((x:module_size-10,y:module_size-2),int(input[10]),img) #d11
+    write_2x4_up((x:module_size-10,y:module_size-6),int(input[11]),img) #d12
+    write_2x4_up((x:module_size-10,y:module_size-10),int(input[12]),img) #d13
+    write_2x4_up((x:module_size-10,y:module_size-14),int(input[13]),img) #d14
 
     # break one for the fixed dots
-    write_2x4_up((x:module_size-10,y:2),0b01010101,img) #d15
-    write_4x2_anti_clockwise((x:module_size-12,y:0),0b10101010,img) #d16
-    write_2x4_down((x:module_size-12,y:2),0b1010101,img) # d16
+    write_2x4_up((x:module_size-10,y:2),int(input[14]),img) #d15
+    write_4x2_anti_clockwise((x:module_size-12,y:0),int(input[15]),img) #d16
+    write_2x4_down((x:module_size-12,y:2),int(input[16]),img) # d16
+
+    # in future, we will need to do this variably I think, and then ecc after
 
     # breaks for the end
 
@@ -205,7 +207,6 @@ proc encode(input: string): image =
     # for the larger ones(e.g. ver 3), need to automate this patterning mor
 
     # all data afterwards will hard rewrite over masking pattern
-
 
     # format info(hardcoded v1)
     let mask_pattern = 0b100
