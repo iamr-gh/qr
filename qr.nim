@@ -161,8 +161,8 @@ proc encode(input: string): image =
     write_2x4_up((x:module_size-6,y:module_size-10),0b10101010,img) #d7
 
     write_4x2_anti_clockwise((x:module_size-8,y:module_size-12),0b01010101,img) #d8
-    write_2x4_down((x:module_size-8,y:module_size-10),0b10101010,img) #d9
     write_2x4_down((x:module_size-8,y:module_size-6),0b01010101,img) #d10
+    write_2x4_down((x:module_size-8,y:module_size-10),0b10101010,img) #d9
 
     write_4x2_clockwise((x:module_size-10,y:module_size-2),0b10101010,img) #d11
     write_2x4_up((x:module_size-10,y:module_size-6),0b01010101,img) #d12
@@ -171,8 +171,8 @@ proc encode(input: string): image =
 
     # break one for the fixed dots
     write_2x4_up((x:module_size-10,y:2),0b01010101,img)
-    # write_4x2_anti_clockwise((x:module_size-8,y:0),0b01010101,img)
-    write_2x4_down((x:module_size-8,y:2),0b01010101,img)
+    write_4x2_anti_clockwise((x:module_size-12,y:0),0b10101010,img)
+    write_2x4_down((x:module_size-12,y:2),0b1010101,img)
 
 
 
