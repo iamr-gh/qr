@@ -170,9 +170,22 @@ proc encode(input: string): image =
     write_2x4_up((x:module_size-10,y:module_size-14),0b01010101,img) #d14
 
     # break one for the fixed dots
-    write_2x4_up((x:module_size-10,y:2),0b01010101,img)
-    write_4x2_anti_clockwise((x:module_size-12,y:0),0b10101010,img)
-    write_2x4_down((x:module_size-12,y:2),0b1010101,img)
+    write_2x4_up((x:module_size-10,y:2),0b01010101,img) #d15
+    write_4x2_anti_clockwise((x:module_size-12,y:0),0b10101010,img) #d16
+    write_2x4_down((x:module_size-12,y:2),0b1010101,img) # d16
+
+    # breaks for the end
+
+    write_2x4_down((x:module_size-12,y:module_size-12),0b01010101,img) #e1
+    write_2x4_down((x:module_size-12,y:module_size-8),0b10101010,img) #e2
+    write_2x4_down((x:module_size-12,y:module_size-4),0b01010101,img) #e3
+
+    # lateral segments
+    write_2x4_up((x:module_size-14,y:module_size-12),0b01010101,img) #e4
+    # dots break
+    write_2x4_down((x:4,y:module_size-12),0b01010101,img) #e5
+    write_2x4_up((x:2,y:module_size-12),0b01010101,img) #e6
+    write_2x4_up((x:0,y:module_size-12),0b01010101,img) #e7
 
 
 
