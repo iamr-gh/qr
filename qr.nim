@@ -176,8 +176,9 @@ proc encode(input: string): image =
     write_2x4_up((x:module_size-6,y:module_size-10),int(input[6]),img) #d7
 
     write_4x2_anti_clockwise((x:module_size-8,y:module_size-12),int(input[7]),img) #d8
-    write_2x4_down((x:module_size-8,y:module_size-6),int(input[8]),img) #d10
-    write_2x4_down((x:module_size-8,y:module_size-10),int(input[9]),img) #d9
+    # WRONG here currently
+    write_2x4_down((x:module_size-8,y:module_size-10),int(input[8]),img) #d9
+    write_2x4_down((x:module_size-8,y:module_size-6),int(input[9]),img) #d10
 
     write_4x2_clockwise((x:module_size-10,y:module_size-2),int(input[10]),img) #d11
     write_2x4_up((x:module_size-10,y:module_size-6),int(input[11]),img) #d12
