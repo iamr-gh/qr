@@ -153,16 +153,25 @@ proc write_4x2_clockwise(src:point,data:int,img:var image) =
     img[src.x+2][src.y] = bit_index(data,6)
     img[src.x+3][src.y] = bit_index(data,7)
 
+# inferring from image, doing a zigzag
+proc write_2x2(src:point,data:int,img:var image) =
+    img[src.x+1][src.y+1] = bit_index(data,0)
+    img[src.x+1][src.y] = bit_index(data,1)
+    img[src.x][src.y+1] = bit_index(data,2)
+    img[src.x][src.y] = bit_index(data,3)
+
 
 proc encode(input: string): image =
     var img:image
 
     # all v1, under this format: https://en.wikipedia.org/wiki/QR_code#/media/File:QR_Character_Placement.svg
 
+    let byte_encoding = 0b0100
+    # 1 ends up in lower right corner of segment
+    write_2x2((x:module_size-2,y:module_size-2),byte_encoding,img)
 
-    # assign data first and mask
 
-    # TODO fill in all sections and test
+    let end_encoding = 0b0000
 
     # enc takes up the 2x2
     write_2x4_up((x:module_size-2,y:module_size-6),input.len,img) #len
@@ -188,7 +197,7 @@ proc encode(input: string): image =
     # break one for the fixed dots
     write_2x4_up((x:module_size-10,y:2),int(input[14]),img) #d15
     write_4x2_anti_clockwise((x:module_size-12,y:0),int(input[15]),img) #d16
-    write_2x4_down((x:module_size-12,y:2),int(input[16]),img) # d16
+    write_2x4_down((x:module_size-12,y:2),int(input[16]),img) # d17
 
     # in future, we will need to do this variably I think, and then ecc after
 
@@ -246,9 +255,9 @@ proc encode(input: string): image =
     # ec level
     img[8][0] = true
     img[8][1] = true
-    img[8][2] = true
+    img[8][2] = false
     img[8][3] = false
-    img[8][4] = false
+    img[8][4] = true
     img[8][5] = true
 
     img[8][7] = true
@@ -294,7 +303,6 @@ proc encode(input: string): image =
     # add ECC, etc.
 
     # write the data bits to the image
-
 
     # apply mask
 
