@@ -202,6 +202,7 @@ proc encode(input: string): image =
     # in future, we will need to do this variably I think, and then ecc after
 
     # breaks for the end
+    write_2x2((x:module_size-12,y:module_size-14),end_encoding,img) # end encoding
     write_2x4_down((x:module_size-12,y:module_size-12),0b01010101,img) #e1
     write_2x4_down((x:module_size-12,y:module_size-8),0b10101010,img) #e2
     write_2x4_down((x:module_size-12,y:module_size-4),0b01010101,img) #e3
