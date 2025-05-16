@@ -26,7 +26,7 @@ proc bch_code(x:range[0..31]):int =
     # generator polynomial is g(x) = x^10 + x^8 + x^5 + x^4 + x^2 + x + 1
     let g = 0b10100110111
 
-    echo &"{x:b}"
+    # echo &"{x:b}"
 
     # the order may need to be double checked of the bits
 
@@ -34,7 +34,7 @@ proc bch_code(x:range[0..31]):int =
     # convert 5 bit int into a polynomial
     # shift message polynomial by multiplying by x^10
     var shifted = x shl 10
-    echo &"{shifted:b}"
+    # echo &"{shifted:b}"
     # remainder is the parity bits
     let rem = poly_div_rem(shifted,g)
     # echo &"{rem:b}"
@@ -48,7 +48,8 @@ proc bch_code(x:range[0..31]):int =
     assert final_rem == 0
 
     # aka shifted message + remainder
-    # let mask = 0b101010000010010 # xord with to prevent all 0 string
+    let mask = 0b101010000010010 # xord with to prevent all 0 string
     codeword xor mask
 
 let code = bch_code(0b10101)
+# echo &"{code:b}"
