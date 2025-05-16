@@ -10,6 +10,9 @@ const module_size:int = 21
 
 proc bit_index(n:int,i:int):bool = bool((n shr i) and 1)
 
+# using a (255,248) Reed Solomon code (shortened to (26,19) code by using "padding") that can correct up to 2 byte-errors. A total of 26 code-words consist of 7 error-correction bytes, and 17 data bytes, in addition to the "Len" (8 bit field), "Enc" (4 bit field), and "End" (4 bit field). The symbol is capable of level L error correction. The EC level is 01(L), and mask pattern is 001. Hence the first 5 bits of the format information are 01001 (without the format mask). After masking, the 5 bits become 11100, as seen here.
+
+
 type
     image = array[module_size, array[module_size,bool]]
     point = tuple[x,y:int]
@@ -93,7 +96,6 @@ proc mask_image(pattern:int, img:var image) =
         for y_i in 0..module_size-1:
             img[x_i][y_i] = mask_point(pattern,(x:x_i,y:y_i),img[x_i][y_i])
 
-
 # NOT UNIT TESTED
 
 # all used in the v1 method, and 1 is MSB
@@ -160,7 +162,6 @@ proc write_2x2(src:point,data:int,img:var image) =
     img[src.x][src.y+1] = bit_index(data,2)
     img[src.x][src.y] = bit_index(data,3)
 
-
 proc encode(input: string): image =
     var img:image
 
@@ -203,16 +204,16 @@ proc encode(input: string): image =
 
     # breaks for the end
     write_2x2((x:module_size-12,y:module_size-14),end_encoding,img) # end encoding
-    write_2x4_down((x:module_size-12,y:module_size-12),0b01010101,img) #e1
-    write_2x4_down((x:module_size-12,y:module_size-8),0b10101010,img) #e2
-    write_2x4_down((x:module_size-12,y:module_size-4),0b01010101,img) #e3
+    write_2x4_down((x:module_size-12,y:module_size-12),0b0,img) #e1
+    write_2x4_down((x:module_size-12,y:module_size-8),0b0,img) #e2
+    write_2x4_down((x:module_size-12,y:module_size-4),0b0,img) #e3
 
     # lateral segments
-    write_2x4_up((x:module_size-14,y:module_size-12),0b01010101,img) #e4
+    write_2x4_up((x:module_size-14,y:module_size-12),0b0,img) #e4
     # dots break
-    write_2x4_down((x:4,y:module_size-12),0b01010101,img) #e5
-    write_2x4_up((x:2,y:module_size-12),0b01010101,img) #e6
-    write_2x4_up((x:0,y:module_size-12),0b01010101,img) #e7
+    write_2x4_down((x:4,y:module_size-12),0b0,img) #e5
+    write_2x4_up((x:2,y:module_size-12),0b0,img) #e6
+    write_2x4_up((x:0,y:module_size-12),0b0,img) #e7
 
     # for the larger ones(e.g. ver 3), need to automate this patterning mor
 
@@ -295,17 +296,6 @@ proc encode(input: string): image =
     # ecc level
     img[8][19] = true
     img[8][20] = true
-
-
-    # set up aligning margins(squares etc)
-
-    # figure out how to encode the characters
-
-    # add ECC, etc.
-
-    # write the data bits to the image
-
-    # apply mask
 
     img
 
