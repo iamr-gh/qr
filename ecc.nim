@@ -63,7 +63,7 @@ proc poly_div_rem_gf8(a:seq[int],b:seq[int]):seq[int] =
     var top = a
     var to_align = b
     while top.len >= b.len:
-        echo &"top:{top}"
+        # echo &"top:{top}"
         to_align = b
 
         # WRONG, needs to use inverse which will involve proper multiplication?
@@ -73,7 +73,7 @@ proc poly_div_rem_gf8(a:seq[int],b:seq[int]):seq[int] =
         # leading digit is a 1, multiply by front to align
         for i in 0..b.len-1:
             to_align[i] = gfMult(top[0],b[i])
-        echo &"aligned:{to_align}"
+        # echo &"aligned:{to_align}"
         
         for i in 0..b.len-1:
             top[i] = top[i] xor to_align[i]
@@ -91,9 +91,6 @@ proc reed_solomon_v1code(data:seq[int]):seq[int] =
 
     # need to pad the message 
     let final_rem = poly_div_rem_gf8(data & newSeq[int](g.len-1),g)
-    # echo &"data with new Seq:{data & newSeq[int](g.len)}"
-    # echo &"rem:{final_rem}"
-    # echo &"combined:{ data & final_rem}"
     assert poly_div_rem_gf8( data & final_rem,g) == @[]
     final_rem
 
@@ -118,3 +115,4 @@ when isMainModule:
     #
     let reed_solomon = reed_solomon_v1code(test_input)
     echo &"{reed_solomon}"
+    assert reed_solomon == @[0xAE, 0xAD, 0xEF,0x06,0x97,0x8F,0x25]
