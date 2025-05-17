@@ -90,9 +90,11 @@ proc reed_solomon_v1code(data:seq[int]):seq[int] =
     let g:seq[int] = @[1,127,122,154,164,11,68,117]
 
     # need to pad the message 
-    let final_rem = poly_div_rem_gf8(data & newSeq[int](g.len),g)
-    echo &"{final_rem}"
-    # assert poly_div_rem_gf8( data & final_rem,g) == @[]
+    let final_rem = poly_div_rem_gf8(data & newSeq[int](g.len-1),g)
+    # echo &"data with new Seq:{data & newSeq[int](g.len)}"
+    # echo &"rem:{final_rem}"
+    # echo &"combined:{ data & final_rem}"
+    assert poly_div_rem_gf8( data & final_rem,g) == @[]
     final_rem
 
 when isMainModule:
