@@ -17,6 +17,20 @@ proc poly_div_rem_gf2(a:int,b:int):int =
     else:
         top
 
+# from AI
+proc gfMult(a: int, b: int): uint8 =
+  var product = 0
+  var aa = a
+  var bb = b
+  for i in 0 ..< 8:
+    if (bb and 1) == 1:
+      product = product xor aa
+    aa = aa shl 1
+    if (aa and 0x100) != 0:
+      aa = aa xor 0x11b
+    bb = bb shr 1
+  return uint8(product)
+
 # assuming left is most significant byte(highest power)
 proc poly_div_rem_gf8(a:seq[uint8],b:seq[uint8]):seq[uint8] =
     # coefficients are within gf2^8, so can xor
@@ -24,10 +38,14 @@ proc poly_div_rem_gf8(a:seq[uint8],b:seq[uint8]):seq[uint8] =
     while top.len >= b.len:
         echo &"top:{top}"
         var to_align = b
-        let top_zeros = countLeadingZeroBits(top[0])
-        let b_zeros = countLeadingZeroBits(b[0])
+
+        # WRONG, needs to use inverse which will involve proper multiplication?
+        # let top_zeros = countLeadingZeroBits(top[0])
+        # let b_zeros = countLeadingZeroBits(b[0])
+
+        # leading digit is a 1, multiply by front to align
         for i in 0..b.len-1:
-            to_align[i] = to_align[i] shl (b_zeros - top_zeros)
+            to_align[i] = gfMult(int(to_align[i]),int(top[i]))
 
         # echo &"top[0]{top[0]:b} to_align[0]{to_align[0]:b}"
         
