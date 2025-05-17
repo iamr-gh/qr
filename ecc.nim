@@ -1,6 +1,8 @@
 import bitops
 import std/strformat
 
+proc bit_index(n:SomeInteger,i:int):bool = bool((n shr i) and 1)
+
 # division is over gf(2^n) so xor is equivalent to subtraction
 proc poly_div_rem_gf2(a:int,b:int):int =
     var top = a
@@ -18,18 +20,18 @@ proc poly_div_rem_gf2(a:int,b:int):int =
         top
 
 # from AI
-proc gfMult(a: int, b: int): uint8 =
-  var product = 0
-  var aa = a
-  var bb = b
-  for i in 0 ..< 8:
-    if (bb and 1) == 1:
-      product = product xor aa
-    aa = aa shl 1
-    if (aa and 0x100) != 0:
-      aa = aa xor 0x11b
-    bb = bb shr 1
-  return uint8(product)
+# I think it's just wrong
+proc gfMult(a: SomeInteger, b: SomeInteger): SomeInteger =
+    var 
+        bb = b
+        prod = 0
+
+    # in binary field, mult is and, add/subtract is xor
+    for i in 0..7:
+        if bit_index(bb,i):
+            prod = prod xor (a shl i)
+    poly_div_rem_gf2(prod,0x11d)
+
 
 # assuming left is most significant byte(highest power)
 proc poly_div_rem_gf8(a:seq[uint8],b:seq[uint8]):seq[uint8] =
@@ -45,7 +47,7 @@ proc poly_div_rem_gf8(a:seq[uint8],b:seq[uint8]):seq[uint8] =
 
         # leading digit is a 1, multiply by front to align
         for i in 0..b.len-1:
-            to_align[i] = gfMult(int(to_align[i]),int(top[i]))
+            to_align[i] = uint8(gfMult(int(top[i]),int(b[i])))
 
         # echo &"top[0]{top[0]:b} to_align[0]{to_align[0]:b}"
         
@@ -102,9 +104,19 @@ when isMainModule:
     echo &"{bch_codeword:b}"
     assert bch_codeword == (0b101011001000111 xor 0b101010000010010)
 
-    # test example from wikipedia
-    # [41 17 77 77 72 E7 76 96 B6 97 06 56 46 96 12 E6 F7 26 70]
-    let test_input:seq[uint8] = @[0x41, 0x17, 0x77, 0x77, 0x72, 0xE7, 0x76, 0x96, 0xB6, 0x97, 0x06, 0x56, 0x46, 0x96, 0x12, 0xE6, 0xF7, 0x26, 0x70]
 
-    let reed_solomon = reed_solomon_v1code(test_input)
-    echo &"{reed_solomon}"
+    # unit testing gf8 calculations
+    # assert gfMult(0x53,0xCA) == 0xC1
+    let
+        a = 0b10001001
+        b = 0b00101010
+        r = gfMult(a,b)
+    # echo &"{r:b}"
+    assert r == 0b11000011
+    #
+    # # test example from wikipedia
+    # # [41 17 77 77 72 E7 76 96 B6 97 06 56 46 96 12 E6 F7 26 70]
+    # let test_input:seq[uint8] = @[0x41, 0x17, 0x77, 0x77, 0x72, 0xE7, 0x76, 0x96, 0xB6, 0x97, 0x06, 0x56, 0x46, 0x96, 0x12, 0xE6, 0xF7, 0x26, 0x70]
+    #
+    # let reed_solomon = reed_solomon_v1code(test_input)
+    # echo &"{reed_solomon}"
