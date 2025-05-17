@@ -1,17 +1,15 @@
-# either model 1 or 2 i what is desired for specification here
-# https://www.keyence.com/ss/products/auto_id/codereader/basic_2d/qr.jsp
+import ecc # mine
 
-# goes from 21 to 177, but 21 should be ok
-# 7 top, 7 bot,  11 in between
-const module_size:int = 21
 
 # going to implement version 1 for now
 # https://commons.wikimedia.org/wiki/File:QR_Character_Placement.svg#/media/File:QR_Character_Placement.svg
 
+# goes from 21 to 177, using 21 for v1 
+const module_size:int = 21
+
 proc bit_index(n:int,i:int):bool = bool((n shr i) and 1)
 
 # using a (255,248) Reed Solomon code (shortened to (26,19) code by using "padding") that can correct up to 2 byte-errors. A total of 26 code-words consist of 7 error-correction bytes, and 17 data bytes, in addition to the "Len" (8 bit field), "Enc" (4 bit field), and "End" (4 bit field). The symbol is capable of level L error correction. The EC level is 01(L), and mask pattern is 001. Hence the first 5 bits of the format information are 01001 (without the format mask). After masking, the 5 bits become 11100, as seen here.
-
 
 type
     image = array[module_size, array[module_size,bool]]
@@ -315,17 +313,18 @@ proc writeCode(ctx:Context,img:image) =
                 let pos = vec2(float(cell_x*cell_size),float(cell_y*cell_size))
                 ctx.fillRect(rect(pos, wh))
 
-let qr_code:image = encode("www.wikipedia.org")
+when isMainModule: 
+    let qr_code:image = encode("www.wikipedia.org")
 
-let screen = newImage(image_size,image_size)
-screen.fill(rgba(255,255,255,255))
+    let screen = newImage(image_size,image_size)
+    screen.fill(rgba(255,255,255,255))
 
-let ctx = newContext(screen)
-ctx.fillStyle = rgba(0, 0, 0, 255)
+    let ctx = newContext(screen)
+    ctx.fillStyle = rgba(0, 0, 0, 255)
 
-writeCode(ctx,qr_code)
+    writeCode(ctx,qr_code)
 
-screen.writeFile("output.png")
+    screen.writeFile("output.png")
 
 # test all the different mask patterns
 # for i in 0..8:
@@ -335,4 +334,3 @@ screen.writeFile("output.png")
 #     writeCode(ctx,blank)
 #
 #     screen.writeFile("mask_" & $i & ".png")
-    
