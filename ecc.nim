@@ -21,21 +21,16 @@ proc poly_div_rem_gf2(a:int,b:int):int =
 
 # assumes 8 bit inputs
 proc gf_mult(a: int, b: int): int =
-    if b == 1:
-        a
-    elif a == 1:
-        b
-    else:
-        var 
-            bb = b
-            prod = 0
+    var 
+        bb = b
+        prod = 0
 
-        # in binary field, mult is and, add/subtract is xor
-        for i in 0..7:
-            if bit_index(bb,i):
-                prod = prod xor (a shl i)
-        # mod by a irreducible to stabilize the field, this is the common one
-        poly_div_rem_gf2(prod,0x11d)
+    # in binary field, mult is and, add/subtract is xor
+    for i in 0..7:
+        if bit_index(bb,i):
+            prod = prod xor (a shl i)
+    # mod by a irreducible to stabilize the field, this is the common one
+    poly_div_rem_gf2(prod,0x11d)
 
 # 5 bits in, 15 bits out
 # a (15,5) triple error-correcting code over GF(2^4) is used
@@ -58,44 +53,44 @@ proc bch_code(x:range[0..31]):int =
     codeword xor mask
 
 # assuming left is most significant byte(highest power)
-# proc poly_div_rem_gf8(a:seq[int],b:seq[int]):seq[int] =
-#     # coefficients are within gf2^8, so can xor
-#     var top = a
-#     var to_align = b
-#     while top.len >= b.len:
-#         echo &"top:{top}"
-#         to_align = b
-#
-#         # leading digit is a 1, multiply by front to align
-#         for i in 0..b.len-1:
-#             to_align[i] = gf_mult(top[0],b[i])
-#         echo &"aligned:{to_align}"
-#         
-#         for i in 0..b.len-1:
-#             top[i] = top[i] xor to_align[i]
-#
-#         # remove leading zero elements
-#         while top.len > 0 and top[0] == 0:
-#             top = top[1..^1]
-#     echo "-------DONE-------"
-#     top
+proc poly_div_rem_gf8(a:seq[int],b:seq[int]):seq[int] =
+    # coefficients are within gf2^8, so can xor
+    var top = a
+    var to_align = b
+    while top.len >= b.len:
+        echo &"top:{top}"
+        to_align = b
+
+        # leading digit is a 1, multiply by front to align
+        for i in 0..b.len-1:
+            to_align[i] = gf_mult(b[i],top[0])
+        echo &"aligned:{to_align}"
+        
+        for i in 0..b.len-1:
+            top[i] = top[i] xor to_align[i]
+
+        # remove leading zero elements
+        while top.len > 0 and top[0] == 0:
+            top = top[1..^1]
+    echo "-------DONE-------"
+    top
 # might reimplem with synthetic division just to match
 
-# stealing implem from article
-proc poly_div_rem_synth(a:seq[int],b:seq[int]):seq[int] =
-    assert a.len >= b.len
-    var msg_out = a
-    for i in 0..(a.len - (b.len - 1) - 1):
-        let coef = msg_out[i]
-        if coef != 0:
-            for j in 1..b.len-1:
-                if b[j] != 0:
-                    # echo &"a len:{a.len} b len:{b.len}"
-                    # echo &"i:{i} j:{j}"
-                    # echo &"msg_out len:{msg_out.len}"
-                    msg_out[i+j] = msg_out[i+j] xor gf_mult(coef,b[j])
-    let sep = (b.len-1)
-    return msg_out[^(sep)..^1]
+# implem from article: https://en.wikiversity.org/wiki/Reed%E2%80%93Solomon_codes_for_coders
+# proc poly_div_rem_synth(a:seq[int],b:seq[int]):seq[int] =
+#     assert a.len >= b.len
+#     var msg_out = a
+#     for i in 0..(a.len - (b.len - 1) - 1):
+#         let coef = msg_out[i]
+#         if coef != 0:
+#             for j in 1..b.len-1:
+#                 if b[j] != 0:
+#                     # echo &"a len:{a.len} b len:{b.len}"
+#                     # echo &"i:{i} j:{j}"
+#                     # echo &"msg_out len:{msg_out.len}"
+#                     msg_out[i+j] = msg_out[i+j] xor gf_mult(b[j],coef)
+#     let sep = (b.len-1)
+#     return msg_out[^(sep)..^1]
         
 
 # using L error correction, (26,19,2) code to match wikipedia page
@@ -105,12 +100,12 @@ proc reed_solomon_v1code(data:seq[int]):seq[int] =
     let g:seq[int] = @[1,127,122,154,164,11,68,117]
 
     # need to pad the message 
-    # let final_rem = poly_div_rem_gf8(data & newSeq[int](g.len-1),g)
-    let final_rem = poly_div_rem_synth(data & newSeq[int](g.len-1),g)
+    let final_rem = poly_div_rem_gf8(data & newSeq[int](g.len-1),g)
+    # let final_rem = poly_div_rem_synth(data & newSeq[int](g.len-1),g)
     echo &"final_rem:{final_rem}"
     # -- this is true, so I now wonder if there is a bug in division
-    # assert poly_div_rem_gf8( data & final_rem,g) == @[] 
-    assert poly_div_rem_synth( data & final_rem,g) == @[]
+    assert poly_div_rem_gf8( data & final_rem,g) == @[] 
+    # assert poly_div_rem_synth( data & final_rem,g) == @[]
     final_rem
 
 when isMainModule:
