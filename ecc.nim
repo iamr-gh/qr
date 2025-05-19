@@ -19,9 +19,8 @@ proc poly_div_rem_gf2(a:int,b:int):int =
     else:
         top
 
-# from AI
-# I think it's just wrong
-proc gfMult(a: SomeInteger, b: SomeInteger): SomeInteger =
+# assumes 8 bit inputs
+proc gf_mult(a: int, b: int): int =
     if b == 1:
         a
     elif a == 1:
@@ -35,6 +34,7 @@ proc gfMult(a: SomeInteger, b: SomeInteger): SomeInteger =
         for i in 0..7:
             if bit_index(bb,i):
                 prod = prod xor (a shl i)
+        # mod by a irreducible to stabilize the field, this is the common one
         poly_div_rem_gf2(prod,0x11d)
 
 # 5 bits in, 15 bits out
@@ -58,30 +58,45 @@ proc bch_code(x:range[0..31]):int =
     codeword xor mask
 
 # assuming left is most significant byte(highest power)
-proc poly_div_rem_gf8(a:seq[int],b:seq[int]):seq[int] =
-    # coefficients are within gf2^8, so can xor
-    var top = a
-    var to_align = b
-    while top.len >= b.len:
-        # echo &"top:{top}"
-        to_align = b
+# proc poly_div_rem_gf8(a:seq[int],b:seq[int]):seq[int] =
+#     # coefficients are within gf2^8, so can xor
+#     var top = a
+#     var to_align = b
+#     while top.len >= b.len:
+#         echo &"top:{top}"
+#         to_align = b
+#
+#         # leading digit is a 1, multiply by front to align
+#         for i in 0..b.len-1:
+#             to_align[i] = gf_mult(top[0],b[i])
+#         echo &"aligned:{to_align}"
+#         
+#         for i in 0..b.len-1:
+#             top[i] = top[i] xor to_align[i]
+#
+#         # remove leading zero elements
+#         while top.len > 0 and top[0] == 0:
+#             top = top[1..^1]
+#     echo "-------DONE-------"
+#     top
+# might reimplem with synthetic division just to match
 
-        # WRONG, needs to use inverse which will involve proper multiplication?
-        # let top_zeros = countLeadingZeroBits(top[0])
-        # let b_zeros = countLeadingZeroBits(b[0])
-
-        # leading digit is a 1, multiply by front to align
-        for i in 0..b.len-1:
-            to_align[i] = gfMult(top[0],b[i])
-        # echo &"aligned:{to_align}"
+# stealing implem from article
+proc poly_div_rem_synth(a:seq[int],b:seq[int]):seq[int] =
+    assert a.len >= b.len
+    var msg_out = a
+    for i in 0..(a.len - (b.len - 1) - 1):
+        let coef = msg_out[i]
+        if coef != 0:
+            for j in 1..b.len-1:
+                if b[j] != 0:
+                    # echo &"a len:{a.len} b len:{b.len}"
+                    # echo &"i:{i} j:{j}"
+                    # echo &"msg_out len:{msg_out.len}"
+                    msg_out[i+j] = msg_out[i+j] xor gf_mult(coef,b[j])
+    let sep = (b.len-1)
+    return msg_out[^(sep)..^1]
         
-        for i in 0..b.len-1:
-            top[i] = top[i] xor to_align[i]
-
-        # remove leading zero elements
-        while top.len > 0 and top[0] == 0:
-            top = top[1..^1]
-    top
 
 # using L error correction, (26,19,2) code to match wikipedia page
 # generator g(x) = x^7 + 127x^6 + 122x^5 + 154x^4 + 164x^3 + 11x^2 + 68x + 117
@@ -90,8 +105,12 @@ proc reed_solomon_v1code(data:seq[int]):seq[int] =
     let g:seq[int] = @[1,127,122,154,164,11,68,117]
 
     # need to pad the message 
-    let final_rem = poly_div_rem_gf8(data & newSeq[int](g.len-1),g)
-    assert poly_div_rem_gf8( data & final_rem,g) == @[]
+    # let final_rem = poly_div_rem_gf8(data & newSeq[int](g.len-1),g)
+    let final_rem = poly_div_rem_synth(data & newSeq[int](g.len-1),g)
+    echo &"final_rem:{final_rem}"
+    # -- this is true, so I now wonder if there is a bug in division
+    # assert poly_div_rem_gf8( data & final_rem,g) == @[] 
+    assert poly_div_rem_synth( data & final_rem,g) == @[]
     final_rem
 
 when isMainModule:
@@ -101,17 +120,18 @@ when isMainModule:
 
 
     # unit testing gf8 calculations
-    # assert gfMult(0x53,0xCA) == 0xC1
+    # assert gf_mult(0x53,0xCA) == 0xC1
     let
         a = 0b10001001
         b = 0b00101010
-        r = gfMult(a,b)
+        r = gf_mult(a,b)
     # echo &"{r:b}"
     assert r == 0b11000011
     
     # # test example from wikipedia
     # # [41 17 77 77 72 E7 76 96 B6 97 06 56 46 96 12 E6 F7 26 70]
     let test_input:seq[int] = @[0x41, 0x17, 0x77, 0x77, 0x72, 0xE7, 0x76, 0x96, 0xB6, 0x97, 0x06, 0x56, 0x46, 0x96, 0x12, 0xE6, 0xF7, 0x26, 0x70]
+    echo &"Test input:{test_input}"
     #
     let reed_solomon = reed_solomon_v1code(test_input)
     echo &"{reed_solomon}"
