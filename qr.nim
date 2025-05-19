@@ -1,4 +1,4 @@
-import ecc # mine
+import ecc
 
 
 # going to implement version 1 for now
@@ -160,6 +160,31 @@ proc write_2x2(src:point,data:int,img:var image) =
     img[src.x][src.y+1] = bit_index(data,2)
     img[src.x][src.y] = bit_index(data,3)
 
+# repackage into 8 bit chunks
+proc data_repack(enc:int, data_len:int, data:string, end_enc:int):seq[int] = 
+    # enc: 4 bit
+    # len: 8 bit
+    # data: n x 8 bit
+    # end: 4 bit
+
+    # simple code, inefficient
+    var chunks_4b:seq[int] = @[]
+    chunks_4b.add(enc)
+    chunks_4b.add(data_len and 0xf0)
+    chunks_4b.add(data_len and 0x0f)
+
+    for c in data:
+        chunks_4b.add(int(c) and 0xf0)
+        chunks_4b.add(int(c) and 0x0f)
+    chunks_4b.add(end_enc)
+
+    var chunks_8b: seq[int] = @[]
+    for i in countup(0,chunks_4b.len-1,2):
+        assert chunks_4b[i] < 16
+        assert chunks_4b[i+1] < 16
+        chunks_8b.add((chunks_4b[i] shl 4) + chunks_4b[i+1])
+    chunks_8b
+
 proc encode(input: string): image =
     var img:image
 
@@ -169,8 +194,14 @@ proc encode(input: string): image =
     # 1 ends up in lower right corner of segment
     write_2x2((x:module_size-2,y:module_size-2),byte_encoding,img)
 
-
     let end_encoding = 0b0000
+
+    let data_seq = data_repack(byte_encoding,input.len,input,end_encoding)
+    if input == "www.wikipedia.org":
+       assert data_seq == @[0x41, 0x17, 0x77, 0x77, 0x72, 0xE7, 0x76, 0x96, 0xB6, 0x97, 0x06, 0x56, 0x46, 0x96, 0x12, 0xE6, 0xF7, 0x26, 0x70]
+        
+    let ecc = ecc.reed_solomon_v1code(data_seq)
+    assert ecc.len == 7
 
     # enc takes up the 2x2
     write_2x4_up((x:module_size-2,y:module_size-6),input.len,img) #len
@@ -202,16 +233,16 @@ proc encode(input: string): image =
 
     # breaks for the end
     write_2x2((x:module_size-12,y:module_size-14),end_encoding,img) # end encoding
-    write_2x4_down((x:module_size-12,y:module_size-12),0b0,img) #e1
-    write_2x4_down((x:module_size-12,y:module_size-8),0b0,img) #e2
-    write_2x4_down((x:module_size-12,y:module_size-4),0b0,img) #e3
+    write_2x4_down((x:module_size-12,y:module_size-12),ecc[0],img) #e1
+    write_2x4_down((x:module_size-12,y:module_size-8),ecc[1],img) #e2
+    write_2x4_down((x:module_size-12,y:module_size-4),ecc[2],img) #e3
 
     # lateral segments
-    write_2x4_up((x:module_size-14,y:module_size-12),0b0,img) #e4
+    write_2x4_up((x:module_size-14,y:module_size-12),ecc[3],img) #e4
     # dots break
-    write_2x4_down((x:4,y:module_size-12),0b0,img) #e5
-    write_2x4_up((x:2,y:module_size-12),0b0,img) #e6
-    write_2x4_up((x:0,y:module_size-12),0b0,img) #e7
+    write_2x4_down((x:4,y:module_size-12),ecc[4],img) #e5
+    write_2x4_up((x:2,y:module_size-12),ecc[5],img) #e6
+    write_2x4_up((x:0,y:module_size-12),ecc[6],img) #e7
 
     # for the larger ones(e.g. ver 3), need to automate this patterning mor
 

@@ -72,7 +72,7 @@ proc poly_div_rem_gf8(a:seq[int],b:seq[int]):seq[int] =
 
         # leading digit is a 1, multiply by front to align
         for i in 0..b.len-1:
-            to_align[i] = gf_mult(b[i],top[0])
+            to_align[i] = gf_mult(top[0], b[i])
 
         assert to_align[0] != 0
         
