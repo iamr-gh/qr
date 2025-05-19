@@ -1,3 +1,4 @@
+import strutils
 include ecc
 # going to implement version 1 for now
 # https://commons.wikimedia.org/wiki/File:QR_Character_Placement.svg#/media/File:QR_Character_Placement.svg
@@ -190,30 +191,34 @@ proc data_repack(enc:int, data_len:int, data:seq[int], end_enc:int):seq[int] =
 proc encode(input: string): image =
     var img:image
 
-    # all v1, under this format: https://en.wikipedia.org/wiki/QR_code#/media/File:QR_Character_Placement.svg
+    # pad with spaces until string is 17 chars
+    let padded_str = input & repeat(' ',17-input.len)
 
+    
+    # all v1, under this format: https://en.wikipedia.org/wiki/QR_code#/media/File:QR_Character_Placement.svg
     let byte_encoding = 0b0100
     # 1 ends up in lower right corner of segment
     write_2x2((x:module_size-2,y:module_size-2),byte_encoding,img)
 
     let end_encoding = 0b0000
 
+    var data_seq = newSeq[int](17)
+    for i in 0..padded_str.len-1:
+        data_seq[i] = int(padded_str[i])
+
+    assert data_seq.len == padded_str.len
+    # BROKEN FOR NOW
     # if data is less than 17 bytes, QR code is padded with the following alternating
     # 11101100 (236)
     # 00010001 (17)
-    var data_seq = newSeq[int](17)
-    assert data_seq.len == input.len
-    for i in 0..input.len-1:
-        data_seq[i] = int(input[i])
-
-    for i in 0..(17 - input.len)-1:
-        if i mod 2 == 0:
-            data_seq[i+input.len] = 236
-        else:
-            data_seq[i+input.len] = 17
+    # for i in 0..(17 - input.len)-1:
+    #     if i mod 2 == 0:
+    #         data_seq[i+input.len] = 236
+    #     else:
+    #         data_seq[i+input.len] = 17
 
 
-    let packed_seq = data_repack(byte_encoding,input.len,data_seq,end_encoding)
+    let packed_seq = data_repack(byte_encoding,padded_str.len,data_seq,end_encoding)
     let ecc_code = reed_solomon_v1code(packed_seq)
     assert ecc_code.len == 7
     if input == "www.wikipedia.org":
@@ -225,29 +230,29 @@ proc encode(input: string): image =
 
     # enc takes up the 2x2
     write_2x4_up((x:module_size-2,y:module_size-6),input.len,img) #len
-    write_2x4_up((x:module_size-2,y:module_size-10),int(input[0]),img) #d1
-    write_4x2_anti_clockwise((x:module_size-4,y:module_size-12),int(input[1]),img) #d2
-    write_2x4_down((x:module_size-4,y:module_size-10),int(input[2]),img) #d3
-    write_2x4_down((x:module_size-4,y:module_size-6),int(input[3]),img) #d4
+    write_2x4_up((x:module_size-2,y:module_size-10),int(data_seq[0]),img) #d1
+    write_4x2_anti_clockwise((x:module_size-4,y:module_size-12),data_seq[1],img) #d2
+    write_2x4_down((x:module_size-4,y:module_size-10),data_seq[2],img) #d3
+    write_2x4_down((x:module_size-4,y:module_size-6),data_seq[3],img) #d4
 
-    write_4x2_clockwise((x:module_size-6,y:module_size-2),int(input[4]),img) #d5
-    write_2x4_up((x:module_size-6,y:module_size-6),int(input[5]) ,img) #d6
-    write_2x4_up((x:module_size-6,y:module_size-10),int(input[6]),img) #d7
+    write_4x2_clockwise((x:module_size-6,y:module_size-2),data_seq[4],img) #d5
+    write_2x4_up((x:module_size-6,y:module_size-6),int(data_seq[5]) ,img) #d6
+    write_2x4_up((x:module_size-6,y:module_size-10),data_seq[6],img) #d7
 
-    write_4x2_anti_clockwise((x:module_size-8,y:module_size-12),int(input[7]),img) #d8
+    write_4x2_anti_clockwise((x:module_size-8,y:module_size-12),data_seq[7],img) #d8
     # WRONG here currently
-    write_2x4_down((x:module_size-8,y:module_size-10),int(input[8]),img) #d9
-    write_2x4_down((x:module_size-8,y:module_size-6),int(input[9]),img) #d10
+    write_2x4_down((x:module_size-8,y:module_size-10),data_seq[8],img) #d9
+    write_2x4_down((x:module_size-8,y:module_size-6),data_seq[9],img) #d10
 
-    write_4x2_clockwise((x:module_size-10,y:module_size-2),int(input[10]),img) #d11
-    write_2x4_up((x:module_size-10,y:module_size-6),int(input[11]),img) #d12
-    write_2x4_up((x:module_size-10,y:module_size-10),int(input[12]),img) #d13
-    write_2x4_up((x:module_size-10,y:module_size-14),int(input[13]),img) #d14
+    write_4x2_clockwise((x:module_size-10,y:module_size-2),data_seq[10],img) #d11
+    write_2x4_up((x:module_size-10,y:module_size-6),data_seq[11],img) #d12
+    write_2x4_up((x:module_size-10,y:module_size-10),data_seq[12],img) #d13
+    write_2x4_up((x:module_size-10,y:module_size-14),data_seq[13],img) #d14
 
     # break one for the fixed dots
-    write_2x4_up((x:module_size-10,y:2),int(input[14]),img) #d15
-    write_4x2_anti_clockwise((x:module_size-12,y:0),int(input[15]),img) #d16
-    write_2x4_down((x:module_size-12,y:2),int(input[16]),img) # d17
+    write_2x4_up((x:module_size-10,y:2),data_seq[14],img) #d15
+    write_4x2_anti_clockwise((x:module_size-12,y:0),data_seq[15],img) #d16
+    write_2x4_down((x:module_size-12,y:2),data_seq[16],img) # d17
 
     # in future, we will need to do this variably I think, and then ecc after
 
@@ -263,10 +268,6 @@ proc encode(input: string): image =
     write_2x4_down((x:4,y:module_size-12),ecc_code[4],img) #e5
     write_2x4_up((x:2,y:module_size-12),ecc_code[5],img) #e6
     write_2x4_up((x:0,y:module_size-12),ecc_code[6],img) #e7
-
-    # for the larger ones(e.g. ver 3), need to automate this patterning mor
-
-    # all data afterwards will hard rewrite over masking pattern
 
     # format info(hardcoded v1)
     let mask_pattern = 0b100
@@ -295,11 +296,6 @@ proc encode(input: string): image =
     write_dotted((x:8,y:6),(x:14,y:6),img)
 
     img[8][13] = true
-
-
-    assert bit_index(mask_pattern,2) == true
-    assert bit_index(mask_pattern,1) == false
-    assert bit_index(mask_pattern,0) == false
 
     # tl
 
@@ -365,7 +361,7 @@ proc writeCode(ctx:Context,img:image) =
                 ctx.fillRect(rect(pos, wh))
 
 when isMainModule: 
-    let qr_code:image = encode("www.wikimedia.org")
+    let qr_code:image = encode("www.eecs388.org")
 
     let screen = newImage(image_size,image_size)
     screen.fill(rgba(255,255,255,255))
