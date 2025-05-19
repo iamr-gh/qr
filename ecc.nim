@@ -3,34 +3,44 @@ import std/strformat
 
 proc bit_index(n:SomeInteger,i:int):bool = bool((n shr i) and 1)
 
-# division is over gf(2^n) so xor is equivalent to subtraction
-proc poly_div_rem_gf2(a:int,b:int):int =
-    var top = a
-    while top > b:
-        var to_align = b
-        let top_zeros = countLeadingZeroBits(top)
-        let b_zeros = countLeadingZeroBits(b)
+proc bit_length(x:int):int =
+    var bits = 0
+    while (x shr bits) > 0:
+        bits += 1
+    bits
 
-        to_align = to_align shl (b_zeros - top_zeros)
-        assert top_zeros == countLeadingZeroBits(to_align)
-        top = top xor to_align
-    if top == b:
-        0
-    else:
-        top
+# from https://en.wikiversity.org/wiki/Reed%E2%80%93Solomon_codes_for_coders
+# home grown method was not working
+proc cl_div(a:int, divisor:int):int =
+    var dividend = a
+    let 
+        dl1 = bit_length(dividend)
+        dl2 = bit_length(divisor)
+
+    if dl1 < dl2:
+        return dividend
+
+    for i in countdown(dl1-dl2,0):
+        if (dividend and (1 shl (i + dl2 - 1))) > 0:
+            dividend = dividend xor (divisor shl i)
+    dividend
 
 # assumes 8 bit inputs
 proc gf_mult(a: int, b: int): int =
-    var 
-        bb = b
-        prod = 0
+    assert a < 256
+    assert b < 256
+    # IDs is a thing 
+    # var prod = cl_mult(a,b)
+    var prod = 0
 
     # in binary field, mult is and, add/subtract is xor
     for i in 0..7:
-        if bit_index(bb,i):
+        if bit_index(b,i):
             prod = prod xor (a shl i)
     # mod by a irreducible to stabilize the field, this is the common one
-    poly_div_rem_gf2(prod,0x11d)
+    # assert prod > 0x11d
+    result = cl_div(prod,0x11d)
+    assert result < 256
 
 # 5 bits in, 15 bits out
 # a (15,5) triple error-correcting code over GF(2^4) is used
@@ -42,10 +52,10 @@ proc bch_code(x:range[0..31]):int =
 
     # shift message polynomial by multiplying by x^10
     var shifted = x shl 10
-    let rem = poly_div_rem_gf2(shifted,g)
+    let rem = cl_div(shifted,g)
     let codeword = shifted + rem
 
-    let final_rem = poly_div_rem_gf2(codeword,g)
+    let final_rem = cl_div(codeword,g)
     # echo &"{final_rem:b}"
     assert final_rem == 0
 
@@ -58,13 +68,13 @@ proc poly_div_rem_gf8(a:seq[int],b:seq[int]):seq[int] =
     var top = a
     var to_align = b
     while top.len >= b.len:
-        echo &"top:{top}"
         to_align = b
 
         # leading digit is a 1, multiply by front to align
         for i in 0..b.len-1:
             to_align[i] = gf_mult(b[i],top[0])
-        echo &"aligned:{to_align}"
+
+        assert to_align[0] != 0
         
         for i in 0..b.len-1:
             top[i] = top[i] xor to_align[i]
@@ -72,26 +82,7 @@ proc poly_div_rem_gf8(a:seq[int],b:seq[int]):seq[int] =
         # remove leading zero elements
         while top.len > 0 and top[0] == 0:
             top = top[1..^1]
-    echo "-------DONE-------"
     top
-# might reimplem with synthetic division just to match
-
-# implem from article: https://en.wikiversity.org/wiki/Reed%E2%80%93Solomon_codes_for_coders
-# proc poly_div_rem_synth(a:seq[int],b:seq[int]):seq[int] =
-#     assert a.len >= b.len
-#     var msg_out = a
-#     for i in 0..(a.len - (b.len - 1) - 1):
-#         let coef = msg_out[i]
-#         if coef != 0:
-#             for j in 1..b.len-1:
-#                 if b[j] != 0:
-#                     # echo &"a len:{a.len} b len:{b.len}"
-#                     # echo &"i:{i} j:{j}"
-#                     # echo &"msg_out len:{msg_out.len}"
-#                     msg_out[i+j] = msg_out[i+j] xor gf_mult(b[j],coef)
-#     let sep = (b.len-1)
-#     return msg_out[^(sep)..^1]
-        
 
 # using L error correction, (26,19,2) code to match wikipedia page
 # generator g(x) = x^7 + 127x^6 + 122x^5 + 154x^4 + 164x^3 + 11x^2 + 68x + 117
@@ -99,20 +90,15 @@ proc reed_solomon_v1code(data:seq[int]):seq[int] =
     # data gets rearranged and packed into blocks of 8 bits each
     let g:seq[int] = @[1,127,122,154,164,11,68,117]
 
-    # need to pad the message 
+    # pad message to make space for remainder
     let final_rem = poly_div_rem_gf8(data & newSeq[int](g.len-1),g)
-    # let final_rem = poly_div_rem_synth(data & newSeq[int](g.len-1),g)
-    echo &"final_rem:{final_rem}"
-    # -- this is true, so I now wonder if there is a bug in division
     assert poly_div_rem_gf8( data & final_rem,g) == @[] 
-    # assert poly_div_rem_synth( data & final_rem,g) == @[]
     final_rem
 
 when isMainModule:
     let bch_codeword = bch_code(0b10101)
     echo &"{bch_codeword:b}"
     assert bch_codeword == (0b101011001000111 xor 0b101010000010010)
-
 
     # unit testing gf8 calculations
     # assert gf_mult(0x53,0xCA) == 0xC1
