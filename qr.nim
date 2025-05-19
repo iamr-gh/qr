@@ -1,6 +1,4 @@
-import ecc
-
-
+include ecc
 # going to implement version 1 for now
 # https://commons.wikimedia.org/wiki/File:QR_Character_Placement.svg#/media/File:QR_Character_Placement.svg
 
@@ -170,13 +168,15 @@ proc data_repack(enc:int, data_len:int, data:string, end_enc:int):seq[int] =
     # simple code, inefficient
     var chunks_4b:seq[int] = @[]
     chunks_4b.add(enc)
-    chunks_4b.add(data_len and 0xf0)
+    chunks_4b.add((data_len and 0xf0) shr 4)
     chunks_4b.add(data_len and 0x0f)
 
     for c in data:
-        chunks_4b.add(int(c) and 0xf0)
+        chunks_4b.add((int(c) and 0xf0) shr 4)
         chunks_4b.add(int(c) and 0x0f)
     chunks_4b.add(end_enc)
+
+    echo &"chunks_4b:{chunks_4b}"
 
     var chunks_8b: seq[int] = @[]
     for i in countup(0,chunks_4b.len-1,2):
@@ -197,11 +197,11 @@ proc encode(input: string): image =
     let end_encoding = 0b0000
 
     let data_seq = data_repack(byte_encoding,input.len,input,end_encoding)
+    let ecc_code = reed_solomon_v1code(data_seq)
+    assert ecc_code.len == 7
     if input == "www.wikipedia.org":
-       assert data_seq == @[0x41, 0x17, 0x77, 0x77, 0x72, 0xE7, 0x76, 0x96, 0xB6, 0x97, 0x06, 0x56, 0x46, 0x96, 0x12, 0xE6, 0xF7, 0x26, 0x70]
-        
-    let ecc = ecc.reed_solomon_v1code(data_seq)
-    assert ecc.len == 7
+        assert data_seq == @[0x41, 0x17, 0x77, 0x77, 0x72, 0xE7, 0x76, 0x96, 0xB6, 0x97, 0x06, 0x56, 0x46, 0x96, 0x12, 0xE6, 0xF7, 0x26, 0x70]
+        assert ecc_code == @[0xAE, 0xAD, 0xEF,0x06,0x97,0x8F,0x25]
 
     # enc takes up the 2x2
     write_2x4_up((x:module_size-2,y:module_size-6),input.len,img) #len
@@ -233,16 +233,16 @@ proc encode(input: string): image =
 
     # breaks for the end
     write_2x2((x:module_size-12,y:module_size-14),end_encoding,img) # end encoding
-    write_2x4_down((x:module_size-12,y:module_size-12),ecc[0],img) #e1
-    write_2x4_down((x:module_size-12,y:module_size-8),ecc[1],img) #e2
-    write_2x4_down((x:module_size-12,y:module_size-4),ecc[2],img) #e3
+    write_2x4_down((x:module_size-12,y:module_size-12),ecc_code[0],img) #e1
+    write_2x4_down((x:module_size-12,y:module_size-8),ecc_code[1],img) #e2
+    write_2x4_down((x:module_size-12,y:module_size-4),ecc_code[2],img) #e3
 
     # lateral segments
-    write_2x4_up((x:module_size-14,y:module_size-12),ecc[3],img) #e4
+    write_2x4_up((x:module_size-14,y:module_size-12),ecc_code[3],img) #e4
     # dots break
-    write_2x4_down((x:4,y:module_size-12),ecc[4],img) #e5
-    write_2x4_up((x:2,y:module_size-12),ecc[5],img) #e6
-    write_2x4_up((x:0,y:module_size-12),ecc[6],img) #e7
+    write_2x4_down((x:4,y:module_size-12),ecc_code[4],img) #e5
+    write_2x4_up((x:2,y:module_size-12),ecc_code[5],img) #e6
+    write_2x4_up((x:0,y:module_size-12),ecc_code[6],img) #e7
 
     # for the larger ones(e.g. ver 3), need to automate this patterning mor
 
