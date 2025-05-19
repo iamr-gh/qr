@@ -159,11 +159,12 @@ proc write_2x2(src:point,data:int,img:var image) =
     img[src.x][src.y] = bit_index(data,3)
 
 # repackage into 8 bit chunks
-proc data_repack(enc:int, data_len:int, data:string, end_enc:int):seq[int] = 
+proc data_repack(enc:int, data_len:int, data:seq[int], end_enc:int):seq[int] = 
     # enc: 4 bit
     # len: 8 bit
     # data: n x 8 bit
     # end: 4 bit
+
 
     # simple code, inefficient
     var chunks_4b:seq[int] = @[]
@@ -172,11 +173,12 @@ proc data_repack(enc:int, data_len:int, data:string, end_enc:int):seq[int] =
     chunks_4b.add(data_len and 0x0f)
 
     for c in data:
-        chunks_4b.add((int(c) and 0xf0) shr 4)
-        chunks_4b.add(int(c) and 0x0f)
+        chunks_4b.add((c and 0xf0) shr 4)
+        chunks_4b.add(c and 0x0f)
+
     chunks_4b.add(end_enc)
 
-    echo &"chunks_4b:{chunks_4b}"
+    # echo &"chunks_4b:{chunks_4b}"
 
     var chunks_8b: seq[int] = @[]
     for i in countup(0,chunks_4b.len-1,2):
@@ -196,11 +198,29 @@ proc encode(input: string): image =
 
     let end_encoding = 0b0000
 
-    let data_seq = data_repack(byte_encoding,input.len,input,end_encoding)
-    let ecc_code = reed_solomon_v1code(data_seq)
+    # if data is less than 17 bytes, QR code is padded with the following alternating
+    # 11101100 (236)
+    # 00010001 (17)
+    var data_seq = newSeq[int](17)
+    assert data_seq.len == input.len
+    for i in 0..input.len-1:
+        data_seq[i] = int(input[i])
+
+    for i in 0..(17 - input.len)-1:
+        if i mod 2 == 0:
+            data_seq[i+input.len] = 236
+        else:
+            data_seq[i+input.len] = 17
+
+
+    let packed_seq = data_repack(byte_encoding,input.len,data_seq,end_encoding)
+    let ecc_code = reed_solomon_v1code(packed_seq)
     assert ecc_code.len == 7
     if input == "www.wikipedia.org":
-        assert data_seq == @[0x41, 0x17, 0x77, 0x77, 0x72, 0xE7, 0x76, 0x96, 0xB6, 0x97, 0x06, 0x56, 0x46, 0x96, 0x12, 0xE6, 0xF7, 0x26, 0x70]
+        # echo &"packed_seq:{packed_seq}"
+        let correct_seq = @[0x41, 0x17, 0x77, 0x77, 0x72, 0xE7, 0x76, 0x96, 0xB6, 0x97, 0x06, 0x56, 0x46, 0x96, 0x12, 0xE6, 0xF7, 0x26, 0x70]
+        # echo &"correct_seq:{correct_seq}"
+        assert correct_seq == packed_seq
         assert ecc_code == @[0xAE, 0xAD, 0xEF,0x06,0x97,0x8F,0x25]
 
     # enc takes up the 2x2
@@ -345,7 +365,7 @@ proc writeCode(ctx:Context,img:image) =
                 ctx.fillRect(rect(pos, wh))
 
 when isMainModule: 
-    let qr_code:image = encode("www.wikipedia.org")
+    let qr_code:image = encode("www.wikimedia.org")
 
     let screen = newImage(image_size,image_size)
     screen.fill(rgba(255,255,255,255))
