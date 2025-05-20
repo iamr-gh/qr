@@ -13,7 +13,13 @@
                style="margin: 20px 0; padding: 12px 16px; width: 300px; font-size: 1rem; border: 2px solid #444; border-radius: 6px; background: #2d2d2d; color: white; outline: none;">
         <div id="qrCodeContainer" style="margin: 20px 0;"></div>
         <div id="errorMessage" style="color: red; margin-bottom: 20px; display: none;">QR code generator does not support more than 17 chars currently</div>
-        <svg id="qrCodeSvg" width="210" height="210" style="background-color: #1e1e1e; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.3);"></svg>
+        <div style="background-color: #1e1e1e; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.3);">
+            <svg id="qrCodeSvg" width="210" height="210"></svg>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button onclick="downloadPNG()" style="padding: 8px 16px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Download PNG</button>
+            <button onclick="downloadSVG()" style="padding: 8px 16px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Download SVG</button>
+        </div>
         <script>
             let prevQrCode = null;
 
@@ -69,6 +75,59 @@
                 console.log("QR code generated with", boolQrCode.length, "rows and", boolQrCode[0].length, "columns");
                 
                 prevQrCode = boolQrCode;
+            }
+
+            function downloadSVG() {
+                const svg = document.getElementById("qrCodeSvg");
+                svg.style.backgroundColor = "white"; // Temporarily set background to white
+                const serializer = new XMLSerializer();
+                const svgStr = serializer.serializeToString(svg);
+                svg.style.backgroundColor = ""; // Reset background
+                const blob = new Blob([svgStr], {type: 'image/svg+xml'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'qrcode.svg';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            function downloadPNG() {
+                const svg = document.getElementById("qrCodeSvg");
+                svg.style.backgroundColor = "white"; // Temporarily set background to white
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+                const data = (new XMLSerializer()).serializeToString(svg);
+                const DOMURL = window.URL || window.webkitURL || window;
+                
+                const img = new Image();
+                const svgBlob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+                const url = DOMURL.createObjectURL(svgBlob);
+                
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                    DOMURL.revokeObjectURL(url);
+                    svg.style.backgroundColor = ""; // Reset background
+                    
+                    const imgURI = canvas
+                        .toDataURL('image/png')
+                        .replace('image/png', 'image/octet-stream');
+                    
+                    const a = document.createElement('a');
+                    a.href = imgURI;
+                    a.download = 'qrcode.png';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                };
+                
+                img.src = url;
             }
         </script>
         <footer style="margin-top: 40px; color: #888; font-size: 0.9rem;">
