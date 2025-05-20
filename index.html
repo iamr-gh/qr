@@ -1,18 +1,21 @@
-<html>
+<html lang="en">
+    <meta charset="UTF-8">
     <head>
         <title>QR Code</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
     </head>
-    <body style="background-color: #1e1e1e; color: white; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 40px; font-family: 'Segoe UI', Arial, sans-serif;">
-        <script src="encoder.js"></script>
+    <body style="background-color: #1e1e1e; color: white; display: flex; flex-direction: column; align-items: center; margin: 0; font-family: 'Segoe UI', Arial, sans-serif;">
+        <div class="content" style="background-color: #1e1e1e; color: white; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; font-family: 'Segoe UI', Arial, sans-serif;">
+            <script src="encoder.js"></script>
 
-        <h1 style="font-size: 2.5rem; margin-bottom: 30px; text-align: center; word-wrap: break-word; max-width: 100%; width: 100%; display: flex; justify-content: center;">QR Code Generator</h1>
+        <h1 style="font-size: 2.5rem; margin-bottom: 20px; text-align: center; word-wrap: break-word; max-width: 100%; width: 100%; display: flex; justify-content: center;">QR Code Generator</h1>
         <input type="text" 
                id="input" 
                placeholder="Name of link" 
                oninput="makeQRCode(this.value)"
-               style="margin: 20px 0; padding: 12px 16px; width: 300px; max-width: 90%; font-size: 1rem; border: 2px solid #444; border-radius: 6px; background: #2d2d2d; color: white; outline: none;">
-        <div id="qrCodeContainer" style="margin: 20px 0;"></div>
-        <div id="errorMessage" style="color: red; margin-bottom: 20px; display: none; text-align: center; padding: 0 20px;">QR code generator does not support more than 17 chars currently</div>
+               style="margin: 10px 0; padding: 12px 16px; width: 300px; max-width: 90%; font-size: 1rem; border: 2px solid #444; border-radius: 6px; background: #2d2d2d; color: white; outline: none;">
+        <div id="qrCodeContainer" style="margin: 10px 0;"></div>
+        <div id="errorMessage" style="color: red; margin-bottom: 10px; display: none; text-align: center; padding: 0 20px;">QR code generator does not support more than 17 chars currently</div>
         <div style="background-color: #1e1e1e; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.3); max-width: 100%; box-sizing: border-box;">
             <svg id="qrCodeSvg" width="210" height="210" style="max-width: 100%; height: auto;"></svg>
         </div>
@@ -96,94 +99,101 @@
                 URL.revokeObjectURL(url);
             }
 
-            function downloadPNG() {
-                const svg = document.getElementById("qrCodeSvg");
-                const input = document.getElementById("input");
-                const filename = input.value.replace(/\./g, '-');
-                svg.style.backgroundColor = "white"; // Temporarily set background to white
-                const canvas = document.createElement("canvas");
-                const ctx = canvas.getContext("2d");
-                const data = (new XMLSerializer()).serializeToString(svg);
-                const DOMURL = window.URL || window.webkitURL || window;
-                
-                const img = new Image();
-                const svgBlob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
-                const url = DOMURL.createObjectURL(svgBlob);
-                
-                img.onload = function() {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.fillStyle = "white";
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
-                    DOMURL.revokeObjectURL(url);
-                    svg.style.backgroundColor = ""; // Reset background
+                function downloadPNG() {
+                    const svg = document.getElementById("qrCodeSvg");
+                    const input = document.getElementById("input");
+                    const filename = input.value.replace(/\./g, '-');
+                    svg.style.backgroundColor = "white"; // Temporarily set background to white
+                    const canvas = document.createElement("canvas");
+                    const ctx = canvas.getContext("2d");
+                    const data = (new XMLSerializer()).serializeToString(svg);
+                    const DOMURL = window.URL || window.webkitURL || window;
                     
-                    const imgURI = canvas
-                        .toDataURL('image/png')
-                        .replace('image/png', 'image/octet-stream');
+                    const img = new Image();
+                    const svgBlob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+                    const url = DOMURL.createObjectURL(svgBlob);
                     
-                    const a = document.createElement('a');
-                    a.href = imgURI;
-                    a.download = `${filename}.png`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                };
-                
-                img.src = url;
-            }
-        </script>
-        <footer style="margin-top: 40px; color: #888; font-size: 0.9rem;">
-            <a href="https://github.com/iamr-gh/qr/tree/main" style="color: #888; display: flex; align-items: center; text-decoration: none;">
-                <svg height="16" width="16" style="margin-right: 4px;" viewBox="0 0 16 16">
-                    <path fill="#888" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
-                </svg>
-                Source Code
-            </a>
-        </footer>
-        <style>
-            @media screen and (max-width: 600px) {
-                body {
-                    padding: 20px !important;
-                    font-size: 1.2rem !important;
+                    img.onload = function() {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        ctx.fillStyle = "white";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0);
+                        DOMURL.revokeObjectURL(url);
+                        svg.style.backgroundColor = ""; // Reset background
+                        
+                        const imgURI = canvas
+                            .toDataURL('image/png')
+                            .replace('image/png', 'image/octet-stream');
+                        
+                        const a = document.createElement('a');
+                        a.href = imgURI;
+                        a.download = `${filename}.png`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    };
+                    
+                    img.src = url;
                 }
-                h1 {
-                    font-size: 2rem !important;
+            </script>
+            <footer style="margin-top: 40px; color: #888; font-size: 0.9rem;">
+                <a href="https://github.com/iamr-gh/qr/tree/main" style="color: #888; display: flex; align-items: center; text-decoration: none;">
+                    <svg height="16" width="16" style="margin-right: 4px;" viewBox="0 0 16 16">
+                        <path fill="#888" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                    </svg>
+                    Source Code
+                </a>
+            </footer>
+            <style>
+                @media screen and (max-width: 600px) {
+                    body {
+                        padding: 10px !important;
+                        font-size: 0.6rem !important;
+                        width: auto !important;
+                    }
+                    h1 {
+                        font-size: 2.0rem !important;
+                        padding: 10px 0 !important;
+                        margin: 0 !important;
+                    }
+                    #qrCodeSvg {
+                        width: 100% !important;
+                        height: auto !important;
+                    }
+                    input {
+                        width: 100% !important;
+                        font-size: 1rem !important;
+                    }
+                    button {
+                        padding: 16px 32px !important;
+                        font-size: 0.75rem !important;
+                    }
                 }
-                #qrCodeSvg {
-                    width: 600px !important;
-                    height: 600px !important;
+                @media screen and (max-width: 400px) {
+                    body {
+                        padding: 5px !important;
+                        font-size: 0.7rem !important;
+                        width: auto !important;
+                    }
+                    h1 {
+                        font-size: 2.0rem !important;
+                        padding: 10px 0 !important;
+                        margin: 0 !important;
+                    }
+                    #qrCodeSvg {
+                        width: 100% !important;
+                        height: auto !important;
+                    }
+                    input {
+                        width: 100% !important;
+                        font-size: 0.9rem !important;
+                    }
+                    button {
+                        padding: 14px 28px !important;
+                        font-size: 0.7rem !important;
+                    }
                 }
-                input {
-                    width: 600px !important;
-                    font-size: 2rem !important;
-                }
-                button {
-                    padding: 16px 32px !important;
-                    font-size: 1.5rem !important;
-                }
-            }
-            @media screen and (max-width: 400px) {
-                body {
-                    padding: 15px !important;
-                    font-size: 1.4rem !important;
-                }
-                h1 {
-                    font-size: 1.8rem !important;
-                }
-                #qrCodeSvg {
-                    width: 500px !important;
-                    height: 500px !important;
-                }
-                input {
-                    width: 500px !important;
-                    font-size: 1.8rem !important;
-                }
-                button {
-                    padding: 14px 28px !important;
-                    font-size: 1.4rem !important;
-                }
-            }
-        </style>
+            </style>
+        </div>
     </body>
