@@ -160,14 +160,12 @@ proc write_2x2(src:point,data:int,img:var image) =
     img[src.x][src.y] = bit_index(data,3)
 
 # repackage into 8 bit chunks
-proc data_repack(enc:int, data_len:int, data:seq[int], end_enc:int):seq[int] = 
+proc data_repack_byte(enc:int, data_len:int, data:seq[int], end_enc:int):seq[int] = 
     # enc: 4 bit
     # len: 8 bit
     # data: n x 8 bit
     # end: 4 bit
 
-
-    # simple code, inefficient
     var chunks_4b:seq[int] = @[]
     chunks_4b.add(enc)
     chunks_4b.add((data_len and 0xf0) shr 4)
@@ -179,8 +177,6 @@ proc data_repack(enc:int, data_len:int, data:seq[int], end_enc:int):seq[int] =
 
     chunks_4b.add(end_enc)
 
-    # echo &"chunks_4b:{chunks_4b}"
-
     var chunks_8b: seq[int] = @[]
     for i in countup(0,chunks_4b.len-1,2):
         assert chunks_4b[i] < 16
@@ -188,24 +184,106 @@ proc data_repack(enc:int, data_len:int, data:seq[int], end_enc:int):seq[int] =
         chunks_8b.add((chunks_4b[i] shl 4) + chunks_4b[i+1])
     chunks_8b
 
+proc alphanumeric_value(c: char): int =
+    # Returns 0-44 value for valid alphanumeric chars
+    let c = toUpperAscii(c)
+    if c >= '0' and c <= '9':
+        return ord(c) - ord('0')
+    elif c >= 'A' and c <= 'Z':
+        return ord(c) - ord('A') + 10
+    elif c == ' ': return 36
+    elif c == '$': return 37
+    elif c == '%': return 38
+    elif c == '*': return 39
+    elif c == '+': return 40
+    elif c == '-': return 41
+    elif c == '.': return 42
+    elif c == '/': return 43
+    elif c == ':': return 44
+    else: return -1
+proc pack_alphanum_data(data: seq[int]): seq[int] =
+    # Pack pairs of chars into 11 bits
+    var packed: seq[int] = @[]
+    for i in countup(0,data.len-2,2):
+        let val = data[i]*45 + data[i+1] # 11 bits total
+        packed.add(val)
+    # Handle last char if odd length
+    if data.len mod 2 == 1:
+        packed.add(data[^1])
+    packed
+
+proc data_repack_alphanum(enc:int, data_len:int, data:seq[int], end_enc:int):seq[int] =
+    # enc: 4 bit
+    # len: 9 bit
+    # data: pairs of chars packed into 11 bits
+    # end: 4 bit
+    
+    var chunks_4b:seq[int] = @[]
+    chunks_4b.add(enc)
+    chunks_4b.add((data_len and 0xf0) shr 4)
+    chunks_4b.add(data_len and 0x0f)
+
+    # Pack pairs of chars into 11 bits
+    for i in countup(0,data.len-2,2):
+        let val = data[i]*45 + data[i+1] # 11 bits total
+        chunks_4b.add((val and 0x7c0) shr 6) # Upper 5 bits 
+        chunks_4b.add((val and 0x3f0) shr 4) # Middle 4 bits
+        chunks_4b.add(val and 0x00f) # Lower 2 bits
+
+    # Handle last char if odd length
+    if data.len mod 2 == 1:
+        let val = data[^1] # 6 bits
+        chunks_4b.add((val and 0x3c) shr 2) # Upper 4 bits
+        chunks_4b.add(val and 0x03) # Lower 2 bits
+
+    chunks_4b.add(end_enc)
+
+    var chunks_8b: seq[int] = @[]
+    for i in countup(0,chunks_4b.len-1,2):
+        # assert chunks_4b[i] < 16
+        # assert chunks_4b[i+1] < 16
+        chunks_8b.add((chunks_4b[i] shl 4) + chunks_4b[i+1])
+    chunks_8b
+
 proc make_qr_code(input: string): image =
     var img:image
 
-    # pad with spaces until string is 17 chars
-    let padded_str = input & repeat(' ',17-input.len)
+    # Check if input is alphanumeric
+    # if this is false, old behavior is maintained
+    var is_alphanum = true
+    for c in input:
+        if alphanumeric_value(c) == -1:
+            is_alphanum = false
+            break
+
+    echo &"is_alphanum:{is_alphanum}"
+
+    # pad with spaces until string is 25 chars for alphanum, 17 for bytes
+    let padded_str = input & repeat(' ', if is_alphanum: 25-input.len else: 17-input.len)
     
     # all v1, under this format: https://en.wikipedia.org/wiki/QR_code#/media/File:QR_Character_Placement.svg
     let byte_encoding = 0b0100
+    let alphanum_encoding = 0b0010
+    let encoding = if is_alphanum: alphanum_encoding else: byte_encoding
+    
     # 1 ends up in lower right corner of segment
-    write_2x2((x:module_size-2,y:module_size-2),byte_encoding,img)
+    write_2x2((x:module_size-2,y:module_size-2),encoding,img)
 
     let end_encoding = 0b0000
 
-    var data_seq = newSeq[int](17)
-    for i in 0..padded_str.len-1:
-        data_seq[i] = int(padded_str[i])
+    var data_seq: seq[int]
+    if is_alphanum:
+        # Convert to alphanumeric values and pack them
+        var alphanum_values = newSeq[int](padded_str.len)
+        for i in 0..padded_str.len-1:
+            alphanum_values[i] = alphanumeric_value(padded_str[i])
+        data_seq = pack_alphanum_data(alphanum_values)
+    else:
+        # Use raw byte values
+        data_seq = newSeq[int](17)
+        for i in 0..padded_str.len-1:
+            data_seq[i] = int(padded_str[i])
 
-    assert data_seq.len == padded_str.len
     # BROKEN FOR NOW
     # if data is less than 17 bytes, QR code is padded with the following alternating
     # 11101100 (236)
@@ -216,8 +294,10 @@ proc make_qr_code(input: string): image =
     #     else:
     #         data_seq[i+input.len] = 17
 
-
-    let packed_seq = data_repack(byte_encoding,padded_str.len,data_seq,end_encoding)
+    let packed_seq = if is_alphanum: 
+        data_repack_alphanum(encoding, padded_str.len, data_seq, end_encoding)
+    else:
+        data_repack_byte(encoding, padded_str.len, data_seq, end_encoding)
     let ecc_code = reed_solomon_v1code(packed_seq)
     assert ecc_code.len == 7
     if input == "www.wikipedia.org":
