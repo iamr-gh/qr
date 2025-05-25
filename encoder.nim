@@ -201,48 +201,74 @@ proc alphanumeric_value(c: char): int =
     elif c == '/': return 43
     elif c == ':': return 44
     else: return -1
+
 proc pack_alphanum_data(data: seq[int]): seq[int] =
     # Pack pairs of chars into 11 bits
-    var packed: seq[int] = @[]
-    for i in countup(0,data.len-2,2):
-        let val = data[i]*45 + data[i+1] # 11 bits total
-        packed.add(val)
-    # Handle last char if odd length
-    if data.len mod 2 == 1:
-        packed.add(data[^1])
-    packed
-
-proc data_repack_alphanum(enc:int, data_len:int, data:seq[int], end_enc:int):seq[int] =
-    # enc: 4 bit
-    # len: 9 bit
-    # data: pairs of chars packed into 11 bits
-    # end: 4 bit
+    var bits: seq[bool] = @[]
     
-    var chunks_4b:seq[int] = @[]
-    chunks_4b.add(enc)
-    chunks_4b.add((data_len and 0xf0) shr 4)
-    chunks_4b.add(data_len and 0x0f)
-
     # Pack pairs of chars into 11 bits
     for i in countup(0,data.len-2,2):
         let val = data[i]*45 + data[i+1] # 11 bits total
-        chunks_4b.add((val and 0x7c0) shr 6) # Upper 5 bits 
-        chunks_4b.add((val and 0x3f0) shr 4) # Middle 4 bits
-        chunks_4b.add(val and 0x00f) # Lower 2 bits
+        for j in countdown(10,0):
+            bits.add(bit_index(val,j))
 
     # Handle last char if odd length
     if data.len mod 2 == 1:
         let val = data[^1] # 6 bits
-        chunks_4b.add((val and 0x3c) shr 2) # Upper 4 bits
-        chunks_4b.add(val and 0x03) # Lower 2 bits
-
-    chunks_4b.add(end_enc)
-
+        for i in countdown(5,0):
+            bits.add(bit_index(val,i))
+            
+    # Pack bits into bytes
     var chunks_8b: seq[int] = @[]
-    for i in countup(0,chunks_4b.len-1,2):
-        # assert chunks_4b[i] < 16
-        # assert chunks_4b[i+1] < 16
-        chunks_8b.add((chunks_4b[i] shl 4) + chunks_4b[i+1])
+    for i in countup(0,bits.len-1,8):
+        var byte_val = 0
+        for j in 0..7:
+            if i+j < bits.len and bits[i+j]:
+                byte_val = byte_val or (1 shl (7-j))
+        chunks_8b.add(byte_val)
+    chunks_8b
+
+# this needs a pretty significant rework
+proc data_repack_alphanum(enc:int, data_len:int, data:seq[int], end_enc:int):seq[int] =
+    # enc: 4 bit
+    # len: 8 bit
+    # data: pairs of chars packed into 11 bits
+    # end: 4 bit
+    
+    var bits: seq[bool] = @[]
+    
+    # Add encoding (4 bits)
+    for i in countdown(3,0):
+        bits.add(bit_index(enc,i))
+        
+    # Add length (8 bits)
+    for i in countdown(7,0):
+        bits.add(bit_index(data_len,i))
+
+    # Pack pairs of chars into 11 bits
+    for i in countup(0,data.len-2,2):
+        let val = data[i]*45 + data[i+1] # 11 bits total
+        for j in countdown(10,0):
+            bits.add(bit_index(val,j))
+
+    # Handle last char if odd length
+    if data.len mod 2 == 1:
+        let val = data[^1] # 6 bits
+        for i in countdown(5,0):
+            bits.add(bit_index(val,i))
+
+    # Add end encoding (4 bits)
+    for i in countdown(3,0):
+        bits.add(bit_index(end_enc,i))
+
+    # Pack bits into bytes
+    var chunks_8b: seq[int] = @[]
+    for i in countup(0,bits.len-1,8):
+        var byte_val = 0
+        for j in 0..7:
+            if i+j < bits.len and bits[i+j]:
+                byte_val = byte_val or (1 shl (7-j))
+        chunks_8b.add(byte_val)
     chunks_8b
 
 proc make_qr_code(input: string): image =
@@ -283,6 +309,16 @@ proc make_qr_code(input: string): image =
         data_seq = newSeq[int](17)
         for i in 0..padded_str.len-1:
             data_seq[i] = int(padded_str[i])
+    
+    # needs to match indexing of the image
+    echo &"data_seq.len:{data_seq.len}"
+    echo &"data_seq:{data_seq}"
+
+    # remove last byte of data_seq
+    # bad hotfix -- ecc should be breaking as well
+    data_seq.setLen(data_seq.len-1)
+
+    assert data_seq.len == 17
 
     # BROKEN FOR NOW
     # if data is less than 17 bytes, QR code is padded with the following alternating
@@ -298,6 +334,7 @@ proc make_qr_code(input: string): image =
         data_repack_alphanum(encoding, padded_str.len, data_seq, end_encoding)
     else:
         data_repack_byte(encoding, padded_str.len, data_seq, end_encoding)
+    echo &"packed_seq:{packed_seq}"
     let ecc_code = reed_solomon_v1code(packed_seq)
     assert ecc_code.len == 7
     if input == "www.wikipedia.org":
