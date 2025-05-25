@@ -1,6 +1,13 @@
 # QR
-Hosted on https://iamr-gh.github.io/qr/. Runs fully in browser, static and free forever.
+Hosted on https://iamr-gh.github.io/qr/.  
+Runs fully in browser, static and free forever.
 
-There are a million qr code sites and libraries, this one is a simple v1 code with byte encoding.
+## To Run Locally
 
-In nim, to provide ease of running locally or in browser.
+### CLI
+``nimble install pixie``
+``nim r qr.nim``
+
+### Web
+After changes, run ``nim js encoder.nim`` and edit ``index.html`` with the correct method call.
+Open ``index.html`` in your favorite browser, then use UI. 
