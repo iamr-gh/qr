@@ -95,6 +95,18 @@ proc reed_solomon_v1code(data:seq[int]):seq[int] =
     assert poly_div_rem_gf8( data & final_rem,g) == @[] 
     final_rem
 
+# V2-L error correction: (44,34) code with 10 ECC codewords
+# generator polynomial coefficients derived from alpha exponents:
+# g(x) = x^10 + a^251*x^9 + a^67*x^8 + a^46*x^7 + a^61*x^6 + a^118*x^5 + a^70*x^4 + a^64*x^3 + a^94*x^2 + a^32*x + a^45
+# converted to integers using GF(256) antilog table
+proc reed_solomon_v2code(data:seq[int]):seq[int] = 
+    let g:seq[int] = @[1, 216, 194, 159, 111, 199, 94, 95, 113, 157, 193]
+
+    # pad message to make space for remainder
+    let final_rem = poly_div_rem_gf8(data & newSeq[int](g.len-1),g)
+    assert poly_div_rem_gf8(data & final_rem, g) == @[]
+    final_rem
+
 when isMainModule:
     let bch_codeword = bch_code(0b10101)
     echo &"{bch_codeword:b}"
@@ -117,3 +129,16 @@ when isMainModule:
     let reed_solomon = reed_solomon_v1code(test_input)
     echo &"{reed_solomon}"
     assert reed_solomon == @[0xAE, 0xAD, 0xEF,0x06,0x97,0x8F,0x25]
+
+    # Test V2 Reed-Solomon (10 ECC codewords)
+    # Using a simple test to verify the function works and produces 10 bytes
+    echo "Testing V2 Reed-Solomon..."
+    # Non-zero test input (34 data codewords for V2-L)
+    var test_v2_input: seq[int] = @[]
+    for i in 1..34:
+        test_v2_input.add(i)
+    let reed_solomon_v2 = reed_solomon_v2code(test_v2_input)
+    echo &"V2 ECC output: {reed_solomon_v2}"
+    echo &"V2 ECC output length: {reed_solomon_v2.len}"
+    assert reed_solomon_v2.len == 10
+    echo "V2 Reed-Solomon test passed!"
